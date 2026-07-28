@@ -52,9 +52,10 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
   };
 
   const isAdmin =
-    currentUser.email === "lwu100158@gmail.com" ||
+    currentUser.username === "admin" ||
     currentUser.username === "Happi_offical" ||
-    currentUser.name === "Happi_offical";
+    currentUser.name === "Happi_offical" ||
+    currentUser.id === "admin";
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-4">
@@ -68,7 +69,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
             <h2 className="text-base font-bold text-slate-800">通知中心</h2>
             {isAdmin && (
               <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full">
-                👑 Happi 官方管理員 (lwu100158@gmail.com)
+                👑 Happi 官方管理團隊
               </span>
             )}
           </div>
@@ -169,7 +170,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
                       {n.appealStatus === "pending" ? (
                         <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5 text-amber-600" />
-                          已申請人工審查（案件已發送給 Happi 官方 lwu100158@gmail.com）
+                          已申請人工審查（案件已提交至 Happi 官方團隊）
                         </div>
                       ) : n.appealStatus === "approved" ? (
                         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 font-semibold flex items-center gap-1.5">
@@ -185,7 +186,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
                           {reviewingNotifId === n.id ? (
                             <div className="space-y-2 p-3 bg-amber-50/80 border border-amber-200 rounded-2xl mt-1">
                               <label className="block text-[11px] font-bold text-amber-900">
-                                向 Happi 官方管理員 (lwu100158@gmail.com) 說明申訴事由：
+                                向 Happi 官方管理團隊說明申訴事由：
                               </label>
                               <textarea
                                 value={appealReason}
@@ -215,7 +216,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
                               className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                               <Mail className="w-3.5 h-3.5 text-amber-600" />
-                              <span>請求 Happi 官方人工審查 (lwu100158@gmail.com)</span>
+                              <span>請求 Happi 官方團隊人工審查</span>
                             </button>
                           )}
                         </div>

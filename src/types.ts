@@ -37,6 +37,9 @@ export interface PostModeration {
   stage: string;
   hasAppealed?: boolean;
   userAppealReason?: string;
+  appealStage?: "none" | "second_completed" | "third_requested" | "third_completed";
+  secondStageReason?: string;
+  thirdStageReason?: string;
 }
 
 export interface Post {

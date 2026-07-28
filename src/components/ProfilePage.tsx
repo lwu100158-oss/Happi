@@ -14,10 +14,14 @@ import {
   Clock,
   Lock,
   CheckCircle2,
+  Crown,
+  Camera,
+  Upload,
+  User as UserIcon,
 } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { BirthDateChangeModal } from "./BirthDateChangeModal";
-import { validateTimeLimitMinutes, getTimeLimitBounds, CYCLE_NAMES } from "../utils";
+import { validateTimeLimitMinutes, getTimeLimitBounds, CYCLE_NAMES, checkIsAdmin, PRESET_AVATARS, compressImage } from "../utils";
 
 interface ProfilePageProps {
   user: User;
@@ -35,6 +39,7 @@ interface ProfilePageProps {
   onHashtagClick: (hashtag: string) => void;
   onOpenAppeal: (post: Post) => void;
   onUpdateBio: (newBio: string) => void;
+  onUpdateProfile?: (updated: { name: string; username: string; avatar: string; bio: string }) => void;
   onLogout: () => void;
   onDeleteAccount?: () => void;
   onUpdateTimeLimit?: (newConfig: TimeLimitConfig) => void;
@@ -55,6 +60,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onHashtagClick,
   onOpenAppeal,
   onUpdateBio,
+  onUpdateProfile,
   onLogout,
   onDeleteAccount,
   onUpdateTimeLimit,
@@ -70,11 +76,69 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [isBirthChangeModalOpen, setIsBirthChangeModalOpen] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
+  // Edit Profile Modal States
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [editName, setEditName] = useState(user.name || "");
+  const [editUsername, setEditUsername] = useState(user.username || "");
+  const [editAvatar, setEditAvatar] = useState(user.avatar || "");
+  const [editBio, setEditBio] = useState(user.bio || "");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   // Time Limit Modal state
   const [isTimeLimitModalOpen, setIsTimeLimitModalOpen] = useState(false);
   const [tlEnabled, setTlEnabled] = useState(user.timeLimit?.enabled ?? true);
   const [tlCycle, setTlCycle] = useState<TimeLimitCycle>(user.timeLimit?.cycle ?? "1h");
   const [tlMinutes, setTlMinutes] = useState<number>(user.timeLimit?.limitMinutes ?? 30);
+
+  const isAdmin = checkIsAdmin(user);
+
+  const handleOpenEditProfile = () => {
+    setEditName(user.name || "");
+    setEditUsername(user.username || "");
+    setEditAvatar(user.avatar || "");
+    setEditBio(user.bio || "");
+    setIsEditProfileModalOpen(true);
+  };
+
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingAvatar(true);
+      const compressed = await compressImage(file, 400, 400, 0.85);
+      setEditAvatar(compressed);
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+      alert("圖片讀取失敗，請重新選擇");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      alert("顯示名稱不能為空！");
+      return;
+    }
+    if (!editUsername.trim()) {
+      alert("用戶名不能為空！");
+      return;
+    }
+
+    if (onUpdateProfile) {
+      onUpdateProfile({
+        name: editName.trim(),
+        username: editUsername.trim().replace("@", ""),
+        avatar: editAvatar.trim(),
+        bio: editBio.trim(),
+      });
+    } else {
+      onUpdateBio(editBio.trim());
+    }
+
+    setIsEditProfileModalOpen(false);
+  };
 
   // Calculate if locked (<= 10 mins remaining)
   const remainingMins = (user.timeLimit?.limitMinutes || 0) - (user.timeLimit?.usedMinutes || 0);
@@ -142,18 +206,48 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
         <div className="relative pt-2 flex items-start justify-between">
           <div className="flex items-center gap-3.5 min-w-0">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-16 h-16 rounded-2xl object-cover shrink-0 ring-4 ring-white shadow-md -mt-8"
-            />
+            <div className="relative group">
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-16 h-16 rounded-2xl object-cover shrink-0 ring-4 ring-white shadow-md -mt-8"
+              />
+              <button
+                onClick={handleOpenEditProfile}
+                className="absolute -bottom-1 -right-1 bg-emerald-500 hover:bg-emerald-600 text-white p-1 rounded-full shadow-xs cursor-pointer transition-transform hover:scale-110"
+                title="修改個人資料與大頭貼"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-1.5 truncate">
-                {user.name}
-                <Sparkles className="w-4 h-4 text-emerald-500 fill-emerald-500 shrink-0" />
-              </h2>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                  {user.name}
+                  {isAdmin ? (
+                    <Crown className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-emerald-500 fill-emerald-500 shrink-0" />
+                  )}
+                </h2>
+                {isAdmin && (
+                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 border border-amber-200">
+                    <Crown className="w-3 h-3 text-amber-600" />
+                    官方管理員
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 font-medium">@{user.username || "happi_user"}</p>
             </div>
           </div>
+
+          <button
+            onClick={handleOpenEditProfile}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>編輯資料</span>
+          </button>
         </div>
 
         {/* Bio Section */}
@@ -566,6 +660,144 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer"
                 >
                   儲存設定
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal: Edit Profile (Username & Avatar & Bio) */}
+      {isEditProfileModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4 animate-scaleUp border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                編輯個人資料 (用戶名與大頭貼)
+              </h3>
+              <button
+                onClick={() => setIsEditProfileModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Avatar Preview & Selection */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">個人大頭貼</label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={editAvatar || user.avatar}
+                    alt="Avatar preview"
+                    className="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-400 shadow-xs shrink-0"
+                  />
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    {/* File Upload Button */}
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold cursor-pointer transition-colors border border-emerald-200">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{isUploadingAvatar ? "上傳圖片中..." : "上傳本地照片"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[10px] text-slate-400">支援 JPG, PNG，自動進行高畫質壓縮</p>
+                  </div>
+                </div>
+
+                {/* Preset Avatars Selection */}
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-1.5">或點擊選擇預設經典大頭貼：</span>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {PRESET_AVATARS.map((url, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setEditAvatar(url)}
+                        className={`w-9 h-9 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                          editAvatar === url ? "border-emerald-500 ring-2 ring-emerald-200 scale-105" : "border-slate-200 hover:border-slate-400"
+                        }`}
+                      >
+                        <img src={url} alt={`Preset ${idx}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Avatar URL Input */}
+                <div>
+                  <input
+                    type="text"
+                    value={editAvatar}
+                    onChange={(e) => setEditAvatar(e.target.value)}
+                    placeholder="或貼上圖片 URL (https://...)"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+              </div>
+
+              {/* Display Name Input */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700">顯示名稱</label>
+                <div className="relative">
+                  <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="輸入顯示名稱..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Username Input */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700">帳號 Handle (用戶名)</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-bold text-slate-400">@</span>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    placeholder="happi_user"
+                    className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Bio Input */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700">個人簡介</label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  rows={2}
+                  placeholder="寫點關於你自己的介紹..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
+                />
+              </div>
+
+              {/* Form Action Buttons */}
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+                >
+                  儲存變更
                 </button>
               </div>
             </form>

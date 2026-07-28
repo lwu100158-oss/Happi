@@ -46,9 +46,14 @@ export const HashtagsExplorePage: React.FC<HashtagsExplorePageProps> = ({
 }) => {
   const [searchInput, setSearchInput] = useState("");
 
-  // Collect all unique hashtags across posts and count frequencies
+  // Filter posts to only include public posts or user's own posts (or admin view)
+  const visiblePosts = posts.filter(
+    (p) => !p.isPrivate || p.authorId === currentUserId || currentUserIsAdmin
+  );
+
+  // Collect all unique hashtags across visible posts and count frequencies
   const hashtagCounts: Record<string, number> = {};
-  posts.forEach((post) => {
+  visiblePosts.forEach((post) => {
     post.hashtags.forEach((tag) => {
       hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
     });
@@ -61,7 +66,7 @@ export const HashtagsExplorePage: React.FC<HashtagsExplorePageProps> = ({
   );
 
   const activeTagPosts = selectedHashtag
-    ? posts.filter((p) => p.hashtags.includes(selectedHashtag))
+    ? visiblePosts.filter((p) => p.hashtags.includes(selectedHashtag))
     : [];
 
   return (

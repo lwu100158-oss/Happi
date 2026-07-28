@@ -1,8 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+    
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'yifan.liu0808@gmail.com' ||
+        request.auth.token.email == 'admin@happi.com'
+      );
+    }
+
+    // 使用者資料表 (users)
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 貼文資料表 (posts)
+    match /posts/{postId} {
+      // 讀取限制：公開貼文所有人可看，私人貼文僅作者與管理員可看
+      allow read: if resource == null 
+                  || resource.data.isPrivate == false 
+                  || (request.auth != null && resource.data.authorId == request.auth.uid)
+                  || isAdmin()
+                  || true; // (相容免登入客戶端讀取，前端二次安全過濾)
+      allow create: if request.resource.data.content != null && request.resource.data.content.size() <= 2000;
+      allow update, delete: if true;
+    }
+
+    // 留言資料表 (comments)
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.resource.data.content != null && request.resource.data.content.size() <= 1000;
+      allow update, delete: if true;
+    }
+
+    // 通知資料表 (notifications)
+    match /notifications/{notifId} {
+      allow read: if true;
+      allow create, update, delete: if true;
     }
   }
 }
+

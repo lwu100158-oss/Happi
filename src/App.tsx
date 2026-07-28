@@ -29,7 +29,9 @@ import { NotificationsPage } from "./components/NotificationsPage";
 import { ProfilePage } from "./components/ProfilePage";
 import { HashtagsExplorePage } from "./components/HashtagsExplorePage";
 import { ReportModal } from "./components/ReportModal";
+import { OtherUserProfileModal } from "./components/OtherUserProfileModal";
 import { LandingPage } from "./components/LandingPage";
+import { checkIsAdmin } from "./utils";
 import { Sparkles, Hash, LogIn, Clock, AlertTriangle, Lock, ShieldCheck, X, Droplets, BookOpen, Coffee, Heart } from "lucide-react";
 
 export default function App() {
@@ -306,7 +308,19 @@ export default function App() {
   useEffect(() => {
     const unsubPosts = subscribePosts((cloudPosts) => {
       if (cloudPosts && cloudPosts.length > 0) {
-        setPosts(cloudPosts);
+        setPosts((prevPosts) => {
+          const cloudMap = new Map(cloudPosts.map((p) => [p.id, p]));
+          const now = Date.now();
+          // Preserve local pending posts created within last 15 minutes that haven't synced yet
+          const pendingLocalPosts = prevPosts.filter((localP) => {
+            if (cloudMap.has(localP.id)) return false;
+            const createdTime = new Date(localP.createdAt).getTime();
+            return !isNaN(createdTime) && now - createdTime < 15 * 60 * 1000;
+          });
+          return [...pendingLocalPosts, ...cloudPosts].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
       } else {
         INITIAL_POSTS.forEach((p) => savePostToFirestore(p));
       }
@@ -535,7 +549,7 @@ export default function App() {
     }
   };
 
-  // User submits manual review request to official admin (Happi_offical / lwu100158@gmail.com)
+  // User submits manual review request to official admin team
   const handleRequestManualReview = (notifId: string, userReason: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, appealStatus: "pending", appealReason: userReason } : n))
@@ -546,7 +560,7 @@ export default function App() {
       userId: "u_admin_happi",
       type: "manual_review_request",
       title: `🚨 收到用戶人工審查申訴 (${user.name})`,
-      message: `使用者「${user.name}」(Email: ${user.email || "lwu100158@gmail.com"}) 對 AI 安全處分提出了人工覆核請求。`,
+      message: `使用者「${user.name}」對 AI 安全處分提出了人工覆核請求。`,
       createdAt: new Date().toISOString(),
       read: false,
       reporterId: user.id,
@@ -559,7 +573,7 @@ export default function App() {
     setNotifications((prev) => [adminNotif, ...prev]);
   };
 
-  // Admin resolves manual review (lwu100158@gmail.com / Happi_offical)
+  // Admin resolves manual review
   const handleAdminResolveReview = (notifId: string, action: "approve" | "reject") => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, appealStatus: action === "approve" ? "approved" : "rejected" } : n))
@@ -581,7 +595,7 @@ export default function App() {
         userId: user.id,
         type: "system",
         title: "👑 Happi 官方人工審查結果：申訴通過",
-        message: "Happi 官方團隊 (lwu100158@gmail.com) 已完成人工覆核，現已撤銷違規處分，全面恢復您的發言權限！",
+        message: "Happi 官方團隊已完成人工覆核，現已撤銷違規處分，全面恢復您的發言權限！",
         createdAt: new Date().toISOString(),
         read: false,
       };
@@ -593,7 +607,7 @@ export default function App() {
         userId: user.id,
         type: "system",
         title: "👑 Happi 官方人工審查結果：維護原判",
-        message: "Happi 官方團隊 (lwu100158@gmail.com) 複審後維持原 AI 處置決定。",
+        message: "Happi 官方團隊複審後維持原 AI 處置決定。",
         createdAt: new Date().toISOString(),
         read: false,
       };
@@ -692,13 +706,13 @@ export default function App() {
     const newPost: Post = {
       id: "p_" + Date.now(),
       authorId: user.id,
-      authorName: user.name,
-      authorAvatar: user.avatar,
-      authorHandle: "",
+      authorName: user.name || "Happi 會員",
+      authorAvatar: user.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      authorHandle: user.username ? `@${user.username}` : "@happi_member",
       content: data.content,
       hashtags: data.hashtags.length > 0 ? data.hashtags : extractHashtags(data.content),
-      imageUrl: data.imageUrl,
-      isPrivate: data.isPrivate,
+      imageUrl: data.imageUrl || "",
+      isPrivate: !!data.isPrivate,
       createdAt: new Date().toISOString(),
       likes: 0,
       likedByMe: false,
@@ -710,11 +724,12 @@ export default function App() {
         reason: moderationResult.reason,
         stage: moderationResult.stage,
         hasAppealed: false,
+        appealStage: "none",
       },
     };
 
-    savePostToFirestore(newPost);
-    setPosts((prev) => [newPost, ...prev]);
+    await savePostToFirestore(newPost);
+    setPosts((prev) => [newPost, ...prev.filter((p) => p.id !== newPost.id)]);
 
     // Send AI Moderation Notification if public
     if (!data.isPrivate) {
@@ -722,7 +737,7 @@ export default function App() {
         id: "n_" + Date.now(),
         userId: user.id,
         type: "moderation_complete",
-        title: "AI 安全審查確認通知",
+        title: "Happi AI 安全天眼審查通知",
         message: `您的新貼文審查完成，分級為：【${moderationResult.ageRating}】 (${moderationResult.reason})`,
         createdAt: new Date().toISOString(),
         read: false,
@@ -730,7 +745,7 @@ export default function App() {
         ageRating: moderationResult.ageRating,
         stage: moderationResult.stage,
       };
-      saveNotificationToFirestore(newNotif);
+      await saveNotificationToFirestore(newNotif);
       setNotifications((prev) => [newNotif, ...prev]);
     }
 
@@ -759,11 +774,62 @@ export default function App() {
     setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)));
   };
 
-  // Submit Gemini API Appeal
-  const handleSubmitAppeal = async (postId: string, userReason: string) => {
+  // Submit Post Appeal (Stage 2: AI 深度二審 / Stage 3: Happi 官方團隊人工三審)
+  const handleSubmitAppeal = async (postId: string, userReason: string, isThirdStage?: boolean) => {
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
+    if (isThirdStage) {
+      // Stage 3: Submit to Happi Official Admin Team for Manual Review
+      const updatedPost: Post = {
+        ...targetPost,
+        moderation: {
+          ...targetPost.moderation,
+          stage: "Happi 官方團隊 (三審人工審查中)",
+          appealStage: "third_requested",
+          thirdStageReason: userReason,
+        },
+      };
+
+      await savePostToFirestore(updatedPost);
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)));
+
+      // Notify admin team
+      const adminNotif: Notification = {
+        id: "n_3rd_" + Date.now(),
+        userId: "u_admin_happi",
+        type: "manual_review_request",
+        title: `🚨 貼文三審人工審查申請 (${user.name})`,
+        message: `使用者「${user.name}」對貼文提出的 Happi 官方團隊三審人工審查申請。申訴說明：${userReason || "無"}`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        postId: postId,
+        reporterId: user.id,
+        reporterName: user.name,
+        appealReason: userReason,
+        appealStatus: "pending",
+      };
+      await saveNotificationToFirestore(adminNotif);
+      setNotifications((prev) => [adminNotif, ...prev]);
+
+      // Notify user confirmation
+      const userNotif: Notification = {
+        id: "n_3rd_usr_" + Date.now(),
+        userId: user.id,
+        type: "system",
+        title: "Happi 官方團隊三審受理通知",
+        message: `您的貼文三審申請已成功送達 Happi 官方團隊！管理人員將於 24 小時內完成人工親自覆核。`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        postId: postId,
+      };
+      await saveNotificationToFirestore(userNotif);
+      setNotifications((prev) => [userNotif, ...prev]);
+
+      return;
+    }
+
+    // Stage 2: AI Precision Review
     try {
       const res = await fetch("/api/gemini/appeal", {
         method: "POST",
@@ -778,7 +844,7 @@ export default function App() {
       const resData = await res.json();
 
       const updatedAgeRating = resData.ageRating || "所有年齡 (0-99歲)";
-      const updatedReason = resData.reason || "AI 深度複審完成";
+      const updatedReason = resData.reason || "Happi AI 深度二審完成";
 
       const updatedPost: Post = {
         ...targetPost,
@@ -786,13 +852,15 @@ export default function App() {
           status: resData.allowed ? "approved" : "restricted",
           ageRating: updatedAgeRating,
           reason: updatedReason,
-          stage: "AI 深度複審",
+          stage: "Happi AI 安全天眼 (二審)",
           hasAppealed: true,
+          appealStage: "second_completed",
           userAppealReason: userReason,
+          secondStageReason: updatedReason,
         },
       };
 
-      savePostToFirestore(updatedPost);
+      await savePostToFirestore(updatedPost);
 
       // Update Post state
       setPosts((prev) =>
@@ -804,19 +872,20 @@ export default function App() {
         id: "n_appeal_" + Date.now(),
         userId: user.id,
         type: "appeal_complete",
-        title: "AI 深度複審完成通知",
-        message: `您的異議申訴經 AI 審查完畢，最新分級為：【${updatedAgeRating}】 (${updatedReason})`,
+        title: "Happi AI 二審 (深度申訴) 結果通知",
+        message: `您的貼文二審複審完成，最新分級為：【${updatedAgeRating}】 (${updatedReason})。如有異議，可進一步申請 Happi 官方團隊三審人工審查。`,
         createdAt: new Date().toISOString(),
         read: false,
         postId,
         ageRating: updatedAgeRating,
-        stage: "AI 深度複審",
+        stage: "Happi AI 安全天眼 (二審)",
       };
 
-      saveNotificationToFirestore(newNotif);
+      await saveNotificationToFirestore(newNotif);
       setNotifications((prev) => [newNotif, ...prev]);
     } catch (err) {
-      console.error("Gemini Appeal Failed:", err);
+      console.error("Happi AI Appeal Failed:", err);
+      throw err;
     }
   };
 
@@ -913,11 +982,77 @@ export default function App() {
 
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
+  const currentUserIsAdmin = checkIsAdmin(user);
+
+  // Viewing other user's profile state
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
+
+  const handleViewProfile = (targetUserId: string) => {
+    if (!targetUserId || targetUserId === user.id) {
+      setViewingProfileUserId(null);
+      setActiveTab("profile");
+    } else {
+      setViewingProfileUserId(targetUserId);
+    }
+  };
+
+  const handleUpdateProfile = async (updated: { name: string; username: string; avatar: string; bio: string }) => {
+    const updatedUser: User = {
+      ...user,
+      name: updated.name,
+      username: updated.username,
+      avatar: updated.avatar,
+      bio: updated.bio,
+    };
+
+    setUser(updatedUser);
+    localStorage.setItem("happi_user", JSON.stringify(updatedUser));
+    await saveUserToFirestore(updatedUser);
+
+    // Sync user's posts author info
+    const updatedPosts = posts.map((p) => {
+      if (p.authorId === user.id) {
+        const newPost = {
+          ...p,
+          authorName: updated.name,
+          authorHandle: `@${updated.username}`,
+          authorAvatar: updated.avatar,
+        };
+        savePostToFirestore(newPost);
+        return newPost;
+      }
+      return p;
+    });
+    setPosts(updatedPosts);
+    localStorage.setItem("happi_posts", JSON.stringify(updatedPosts));
+
+    // Sync user's comments author info
+    const updatedComments = comments.map((c) => {
+      if (c.authorHandle === `@${user.username}` || c.authorName === user.name) {
+        const newComment = {
+          ...c,
+          authorName: updated.name,
+          authorHandle: `@${updated.username}`,
+          authorAvatar: updated.avatar,
+        };
+        saveCommentToFirestore(newComment);
+        return newComment;
+      }
+      return c;
+    });
+    setComments(updatedComments);
+    localStorage.setItem("happi_comments", JSON.stringify(updatedComments));
+  };
+
   // Filter posts based on active hashtag or current view
   const userPosts = posts.filter((p) => p.authorId === user.id);
   const savedPosts = posts.filter((p) => p.savedByMe);
 
   const displayedFeedPosts = posts.filter((p) => {
+    // Hide private posts created by other users unless current user is admin
+    if (p.isPrivate && p.authorId !== user.id && !currentUserIsAdmin) {
+      return false;
+    }
     if (selectedHashtagFilter) {
       return p.hashtags.includes(selectedHashtagFilter);
     }
@@ -1038,14 +1173,14 @@ export default function App() {
                   comments={comments.filter((c) => c.postId === post.id)}
                   userBirthDate={user.birthDate}
                   currentUserId={user.id}
-                  currentUserIsAdmin={user.username === "admin" || user.id === "admin" || user.email === "admin@happi.com"}
+                  currentUserIsAdmin={currentUserIsAdmin}
                   blockedUserIds={blockedUserIds}
                   onLike={handleToggleLike}
                   onSave={handleToggleSave}
                   onAddComment={handleAddComment}
                   onHashtagClick={(tag) => setSelectedHashtagFilter(tag)}
                   onOpenAppeal={(p) => setAppealModalPost(p)}
-                  onViewProfile={() => setActiveTab("profile")}
+                  onViewProfile={handleViewProfile}
                   onToggleBlock={handleToggleBlockUser}
                   onOpenReport={(targetUser, targetPost) =>
                     setReportModalTarget({ user: targetUser, post: targetPost })
@@ -1065,7 +1200,7 @@ export default function App() {
             comments={comments}
             userBirthDate={user.birthDate}
             currentUserId={user.id}
-            currentUserIsAdmin={user.username === "admin" || user.id === "admin" || user.email === "admin@happi.com"}
+            currentUserIsAdmin={currentUserIsAdmin}
             blockedUserIds={blockedUserIds}
             selectedHashtag={selectedHashtagFilter}
             onSelectHashtag={(tag) => setSelectedHashtagFilter(tag)}
@@ -1074,7 +1209,7 @@ export default function App() {
             onSave={handleToggleSave}
             onAddComment={handleAddComment}
             onOpenAppeal={(p) => setAppealModalPost(p)}
-            onViewProfile={() => setActiveTab("profile")}
+            onViewProfile={handleViewProfile}
             onToggleBlock={handleToggleBlockUser}
             onOpenReport={(targetUser, targetPost) =>
               setReportModalTarget({ user: targetUser, post: targetPost })
@@ -1155,7 +1290,7 @@ export default function App() {
                     comments={comments.filter((c) => c.postId === post.id)}
                     userBirthDate={user.birthDate}
                     currentUserId={user.id}
-                    currentUserIsAdmin={user.username === "admin" || user.id === "admin" || user.email === "admin@happi.com"}
+                    currentUserIsAdmin={currentUserIsAdmin}
                     blockedUserIds={blockedUserIds}
                     onLike={handleToggleLike}
                     onSave={handleToggleSave}
@@ -1165,7 +1300,7 @@ export default function App() {
                       setActiveTab("home");
                     }}
                     onOpenAppeal={(p) => setAppealModalPost(p)}
-                    onViewProfile={() => setActiveTab("profile")}
+                    onViewProfile={handleViewProfile}
                     onToggleBlock={handleToggleBlockUser}
                     onOpenReport={(targetUser, targetPost) =>
                       setReportModalTarget({ user: targetUser, post: targetPost })
@@ -1216,6 +1351,7 @@ export default function App() {
               }}
               onOpenAppeal={(p) => setAppealModalPost(p)}
               onUpdateBio={handleUpdateBio}
+              onUpdateProfile={handleUpdateProfile}
               onLogout={handleLogout}
               onDeleteAccount={handleDeleteAccount}
               onUpdateTimeLimit={handleUpdateTimeLimit}
@@ -1394,6 +1530,35 @@ export default function App() {
           currentUser={user}
           onClose={() => setReportModalTarget(null)}
           onSubmitReport={handleSubmitReport}
+        />
+      )}
+
+      {/* View Other User's Profile Modal */}
+      {viewingProfileUserId && (
+        <OtherUserProfileModal
+          targetUserId={viewingProfileUserId}
+          currentUserId={user.id}
+          currentUserIsAdmin={currentUserIsAdmin}
+          userBirthDate={user.birthDate}
+          posts={posts}
+          comments={comments}
+          blockedUserIds={blockedUserIds}
+          onClose={() => setViewingProfileUserId(null)}
+          onLike={handleToggleLike}
+          onSave={handleToggleSave}
+          onAddComment={handleAddComment}
+          onHashtagClick={(tag) => {
+            setSelectedHashtagFilter(tag);
+            setViewingProfileUserId(null);
+            setActiveTab("home");
+          }}
+          onOpenAppeal={(p) => setAppealModalPost(p)}
+          onToggleBlock={handleToggleBlockUser}
+          onOpenReport={(targetUser, targetPost) =>
+            setReportModalTarget({ user: targetUser, post: targetPost })
+          }
+          onEditPost={handleEditPost}
+          onDeletePost={handleDeletePost}
         />
       )}
     </div>
