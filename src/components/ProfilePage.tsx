@@ -381,6 +381,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </div>
 
             <div className="space-y-3">
+              {/* Edit Profile Option inside Settings */}
+              <button
+                onClick={() => {
+                  setIsSettingsModalOpen(false);
+                  handleOpenEditProfile();
+                }}
+                className="w-full p-3 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 rounded-2xl flex items-center justify-between text-xs font-bold text-emerald-800 transition-all cursor-pointer shadow-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Edit3 className="w-4 h-4 text-emerald-600" />
+                  <span>編輯個人資料 (名稱、用戶名、大頭貼與簡介)</span>
+                </div>
+                <span className="text-[10px] text-emerald-600 font-medium bg-white/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                  即時生效
+                </span>
+              </button>
+
               {/* Birth Date Option */}
               <button
                 onClick={() => {

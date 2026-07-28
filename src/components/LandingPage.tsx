@@ -3,7 +3,7 @@ import { LogIn, ArrowRight, ShieldCheck, X, Sparkles, Clock, Lock, Upload, Camer
 import { HappiLogo } from "./HappiLogo";
 import { User, TimeLimitCycle, TimeLimitConfig } from "../types";
 import { compressImage, validateTimeLimitMinutes, getTimeLimitBounds, CYCLE_NAMES } from "../utils";
-import { saveUserToFirestore } from "../services/firestoreService";
+import { saveUserToFirestore, fetchAllUsersFromFirestore } from "../services/firestoreService";
 
 import smilingUserImg from "../assets/images/happi_user_smiling_1785137203160.jpg";
 import readingUserImg from "../assets/images/happi_user_reading_1785137222198.jpg";
@@ -58,36 +58,73 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     ];
   };
 
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   // Handle Login submission
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+    setIsLoggingIn(true);
 
-    const users = getRegisteredUsers();
-    const inputAccount = email.trim().toLowerCase();
+    try {
+      let users = getRegisteredUsers();
+      const inputAccount = email.trim().toLowerCase();
 
-    // Check if account/email exists
-    const matchedUser = users.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === inputAccount) ||
-        (u.email && u.email.toLowerCase() === inputAccount)
-    );
+      // Check local storage users first
+      let matchedUser = users.find(
+        (u) =>
+          (u.username && u.username.toLowerCase() === inputAccount) ||
+          (u.email && u.email.toLowerCase() === inputAccount)
+      );
 
-    if (!matchedUser) {
-      setLoginError("查無此帳戶！請確認輸入的帳號/信箱，或點擊下方「立即註冊」。");
-      return;
+      // If not in local storage, check Cloud Firestore!
+      if (!matchedUser) {
+        const cloudUsers = await fetchAllUsersFromFirestore();
+        if (cloudUsers && cloudUsers.length > 0) {
+          matchedUser = cloudUsers.find(
+            (u) =>
+              (u.username && u.username.toLowerCase() === inputAccount) ||
+              (u.email && u.email.toLowerCase() === inputAccount)
+          );
+
+          if (matchedUser) {
+            // Save synced user to local storage for future fast logins
+            const updatedUsers = [...users, matchedUser];
+            localStorage.setItem("happi_registered_users", JSON.stringify(updatedUsers));
+          }
+        }
+      }
+
+      if (!matchedUser) {
+        setLoginError("查無此帳戶！請確認輸入的帳號/信箱，或點擊下方「立即註冊」。");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // Check password if available
+      if (matchedUser.password && password && matchedUser.password !== password) {
+        setLoginError("密碼錯誤，請重新輸入！");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // Pass the existing matched account data
+      onLogin({
+        id: matchedUser.id,
+        username: matchedUser.username,
+        name: matchedUser.name || matchedUser.username,
+        avatar: matchedUser.avatar || DEFAULT_GUEST_AVATAR,
+        birthDate: matchedUser.birthDate || "2000-01-01",
+        timeLimit: matchedUser.timeLimit,
+        isGuest: false,
+        hasCompletedBirthDatePrompt: true,
+      });
+    } catch (err) {
+      console.error("Login process error:", err);
+      setLoginError("登入過程發生異常，請重試");
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    // Pass the existing matched account data without asking for name/avatar/birthday
-    onLogin({
-      id: matchedUser.id,
-      username: matchedUser.username,
-      name: matchedUser.name || matchedUser.username,
-      avatar: matchedUser.avatar || DEFAULT_GUEST_AVATAR,
-      birthDate: matchedUser.birthDate || "2000-01-01",
-      isGuest: false,
-      hasCompletedBirthDatePrompt: true,
-    });
   };
 
   // Handle Register Step 1
@@ -392,9 +429,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer mt-1"
+                  disabled={isLoggingIn}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer mt-1 flex items-center justify-center gap-2"
                 >
-                  登入社群
+                  {isLoggingIn ? "雲端帳號驗證登入中..." : "登入社群"}
                 </button>
 
                 {/* Prompt to Switch to Register */}

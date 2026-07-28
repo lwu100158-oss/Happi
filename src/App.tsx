@@ -31,6 +31,8 @@ import { HashtagsExplorePage } from "./components/HashtagsExplorePage";
 import { ReportModal } from "./components/ReportModal";
 import { OtherUserProfileModal } from "./components/OtherUserProfileModal";
 import { LandingPage } from "./components/LandingPage";
+import { LoadingSpinner } from "./components/LoadingSpinner";
+import { deletePostFromFirestore } from "./services/firestoreService";
 import { checkIsAdmin } from "./utils";
 import { Sparkles, Hash, LogIn, Clock, AlertTriangle, Lock, ShieldCheck, X, Droplets, BookOpen, Coffee, Heart } from "lucide-react";
 
@@ -60,6 +62,8 @@ export default function App() {
     const saved = localStorage.getItem("happi_notifications");
     return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
   });
+
+  const [isPostsLoading, setIsPostsLoading] = useState<boolean>(true);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
   const [isCreatePostPageOpen, setIsCreatePostPageOpen] = useState(false);
@@ -324,6 +328,7 @@ export default function App() {
       } else {
         INITIAL_POSTS.forEach((p) => savePostToFirestore(p));
       }
+      setIsPostsLoading(false);
     });
 
     const unsubComments = subscribeComments((cloudComments) => {
@@ -358,14 +363,42 @@ export default function App() {
     };
   }, [isLoggedIn, user.id]);
 
-  // Handle Birth Date prompt
-  const handleSaveBirthDate = (birthDate: string) => {
-    setUser((prev) => ({
-      ...prev,
-      birthDate,
-      hasCompletedBirthDatePrompt: true,
-    }));
-    setIsBirthDateModalOpen(false);
+  // Loading state for async actions & data synchronization
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionLoadingText, setActionLoadingText] = useState("Happi 雲端資料處理中...");
+
+  // Handle Birth Date & Time Limit Registration prompt
+  const handleSaveBirthDate = (birthDate: string, timeLimitMinutes?: number) => {
+    setIsActionLoading(true);
+    setActionLoadingText("正在儲存個人健康年齡與時限設定...");
+
+    setUser((prev) => {
+      const newTimeLimit = timeLimitMinutes
+        ? {
+            enabled: true,
+            limitMinutes: timeLimitMinutes,
+            cycle: prev.timeLimit?.cycle || "1d",
+            usedMinutesToday: prev.timeLimit?.usedMinutesToday || 0,
+            lastResetTimestamp: prev.timeLimit?.lastResetTimestamp || new Date().toISOString(),
+          }
+        : prev.timeLimit;
+
+      const updatedUser = {
+        ...prev,
+        birthDate,
+        hasCompletedBirthDatePrompt: true,
+        timeLimit: newTimeLimit,
+      };
+
+      saveUserToFirestore(updatedUser);
+      localStorage.setItem("happi_user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+
+    setTimeout(() => {
+      setIsActionLoading(false);
+      setIsBirthDateModalOpen(false);
+    }, 500);
   };
 
   const handleUpdateBio = (newBio: string) => {
@@ -754,8 +787,18 @@ export default function App() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    await deletePostFromFirestore(postId);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setIsActionLoading(true);
+    setActionLoadingText("正在從 Happi 社群雲端資料庫永久刪除貼文...");
+    try {
+      await deletePostFromFirestore(postId);
+      const updated = posts.filter((p) => p.id !== postId);
+      setPosts(updated);
+      localStorage.setItem("happi_posts", JSON.stringify(updated));
+    } catch (err) {
+      console.error("Delete post error:", err);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   const handleEditPost = async (postId: string, newContent: string, newImageUrl?: string) => {
@@ -1149,7 +1192,11 @@ export default function App() {
             )}
 
             {/* Posts Feed List */}
-            {displayedFeedPosts.length === 0 ? (
+            {isPostsLoading ? (
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xs flex items-center justify-center">
+                <LoadingSpinner message="Happi 社群貼文同步中..." />
+              </div>
+            ) : displayedFeedPosts.length === 0 ? (
               <div className="bg-white p-10 rounded-3xl text-center border border-slate-100 text-slate-500 space-y-3 shadow-xs">
                 <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 mx-auto flex items-center justify-center">
                   <Sparkles className="w-6 h-6" />
@@ -1560,6 +1607,11 @@ export default function App() {
           onEditPost={handleEditPost}
           onDeletePost={handleDeletePost}
         />
+      )}
+
+      {/* Global Action Loading Overlay */}
+      {isActionLoading && (
+        <LoadingSpinner fullScreen message={actionLoadingText} />
       )}
     </div>
   );

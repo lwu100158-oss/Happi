@@ -149,6 +149,20 @@ export const fetchUserFromFirestore = async (userId: string): Promise<User | nul
   return null;
 };
 
+export const fetchAllUsersFromFirestore = async (): Promise<User[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "users"));
+    const users: User[] = [];
+    querySnapshot.forEach((docSnap) => {
+      users.push(docSnap.data() as User);
+    });
+    return users;
+  } catch (err) {
+    console.error("Error fetching all users from Firestore:", err);
+    return [];
+  }
+};
+
 export const subscribeUser = (userId: string, onUpdate: (user: User) => void) => {
   const docRef = doc(db, "users", userId);
   return onSnapshot(

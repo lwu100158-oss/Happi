@@ -64,6 +64,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isPostForceRevealed, setIsPostForceRevealed] = useState(false);
   const [revealedCommentIds, setRevealedCommentIds] = useState<Record<string, boolean>>({});
@@ -82,11 +83,19 @@ export const PostCard: React.FC<PostCardProps> = ({
   const isAuthor = currentUserId === post.authorId;
   const canDelete = isAuthor || currentUserIsAdmin;
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim()) return;
-    onAddComment(post.id, newCommentText.trim());
-    setNewCommentText("");
+    if (!newCommentText.trim() || isSubmittingComment) return;
+    
+    setIsSubmittingComment(true);
+    try {
+      await onAddComment(post.id, newCommentText.trim());
+      setNewCommentText("");
+    } catch (err) {
+      console.error("Error sending comment:", err);
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
   const handleShare = () => {
@@ -515,14 +524,22 @@ export const PostCard: React.FC<PostCardProps> = ({
               value={newCommentText}
               onChange={(e) => setNewCommentText(e.target.value)}
               placeholder="發表你的看法..."
-              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              disabled={isSubmittingComment}
+              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
             />
             <button
               type="submit"
-              disabled={!newCommentText.trim()}
-              className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              disabled={!newCommentText.trim() || isSubmittingComment}
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs shrink-0"
             >
-              傳送
+              {isSubmittingComment ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>傳送中</span>
+                </>
+              ) : (
+                "傳送"
+              )}
             </button>
           </form>
         </div>

@@ -3,6 +3,7 @@ import { User, Post, Comment } from "../types";
 import { fetchUserFromFirestore } from "../services/firestoreService";
 import { checkIsAdmin } from "../utils";
 import { PostCard } from "./PostCard";
+import { LoadingSpinner } from "./LoadingSpinner";
 import {
   X,
   Sparkles,
@@ -101,11 +102,11 @@ export const OtherUserProfileModal: React.FC<OtherUserProfileModalProps> = ({
     };
   }, [targetUserId, posts]);
 
-  // Filter public posts created by this user ONLY (hide private posts of other users)
+  // Filter public posts created by this user ONLY (hide private posts of other users, even for admins)
   const targetUserPublicPosts = posts.filter((p) => {
     if (p.authorId !== targetUserId) return false;
-    // Private posts of other users are hidden, unless current user is admin
-    if (p.isPrivate && !currentUserIsAdmin) return false;
+    // Private posts are ONLY visible to the author. Even admins cannot view other users' private posts.
+    if (p.isPrivate) return false;
     return true;
   });
 
@@ -240,8 +241,8 @@ export const OtherUserProfileModal: React.FC<OtherUserProfileModalProps> = ({
             </div>
 
             {loading ? (
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 text-center text-xs text-slate-400">
-                載入個人主頁中...
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center justify-center">
+                <LoadingSpinner message="載入個人主頁中..." />
               </div>
             ) : targetUserPublicPosts.length === 0 ? (
               <div className="bg-white p-8 rounded-3xl border border-slate-100 text-center space-y-1">
