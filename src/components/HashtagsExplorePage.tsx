@@ -22,6 +22,7 @@ interface HashtagsExplorePageProps {
   onOpenReport?: (user: any, post?: Post) => void;
   onEditPost?: (postId: string, newContent: string, newImageUrl?: string) => void;
   onDeletePost?: (postId: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
 export const HashtagsExplorePage: React.FC<HashtagsExplorePageProps> = ({
@@ -43,12 +44,13 @@ export const HashtagsExplorePage: React.FC<HashtagsExplorePageProps> = ({
   onOpenReport,
   onEditPost,
   onDeletePost,
+  onDeleteComment,
 }) => {
   const [searchInput, setSearchInput] = useState("");
 
-  // Filter posts to only include public posts or user's own posts (or admin view)
+  // Filter posts to only include public posts or user's own posts (Admins CANNOT see other users' private posts)
   const visiblePosts = posts.filter(
-    (p) => !p.isPrivate || p.authorId === currentUserId || currentUserIsAdmin
+    (p) => !p.isPrivate || p.authorId === currentUserId
   );
 
   // Collect all unique hashtags across visible posts and count frequencies
@@ -132,6 +134,7 @@ export const HashtagsExplorePage: React.FC<HashtagsExplorePageProps> = ({
                 onOpenReport={onOpenReport}
                 onEditPost={onEditPost}
                 onDeletePost={onDeletePost}
+                onDeleteComment={onDeleteComment}
               />
             ))}
           </div>

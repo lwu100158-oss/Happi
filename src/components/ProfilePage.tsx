@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { BirthDateChangeModal } from "./BirthDateChangeModal";
-import { validateTimeLimitMinutes, getTimeLimitBounds, CYCLE_NAMES, checkIsAdmin, PRESET_AVATARS, compressImage } from "../utils";
+import { validateTimeLimitMinutes, getTimeLimitBounds, CYCLE_NAMES, checkIsAdmin, PRESET_AVATARS, compressImage, formatHandle } from "../utils";
 
 interface ProfilePageProps {
   user: User;
@@ -45,6 +45,7 @@ interface ProfilePageProps {
   onUpdateTimeLimit?: (newConfig: TimeLimitConfig) => void;
   onEditPost?: (postId: string, newContent: string, newImageUrl?: string) => void;
   onDeletePost?: (postId: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -66,6 +67,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onUpdateTimeLimit,
   onEditPost,
   onDeletePost,
+  onDeleteComment,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"my_posts" | "saved">(
     "my_posts"
@@ -189,32 +191,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const displayedPosts = activeSubTab === "my_posts" ? userPosts : savedPosts;
 
   return (
-    <div className="max-w-xl mx-auto p-4 space-y-4">
+    <div className="w-full max-w-2xl mx-auto space-y-4 pt-1 pb-6 px-1 sm:px-0">
       {/* Profile Card */}
       <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs relative overflow-hidden">
-        <div className="h-16 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 -m-5 mb-0 relative">
+        <div className="h-20 sm:h-24 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 -m-5 mb-0 relative">
           {/* Top-Right Settings Gear Icon Button */}
           <button
             onClick={() => setIsSettingsModalOpen(true)}
-            className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white text-slate-700 rounded-full shadow-xs backdrop-blur-sm transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-white text-slate-700 rounded-full shadow-sm backdrop-blur-sm transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold z-10"
             title="帳號與個人設定"
           >
-            <Settings className="w-4 h-4 text-slate-600" />
-            <span className="pr-1 text-slate-700">設定</span>
+            <Settings className="w-4 h-4 text-slate-700" />
+            <span className="pr-1 text-slate-800">設定</span>
           </button>
         </div>
 
-        <div className="relative pt-2 flex items-start justify-between">
+        <div className="relative pt-3 flex items-start justify-between">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <img
                 src={user.avatar}
                 alt={user.name}
-                className="w-16 h-16 rounded-2xl object-cover shrink-0 ring-4 ring-white shadow-md -mt-8"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-4 ring-white shadow-md -mt-10 sm:-mt-12 bg-white"
               />
               <button
                 onClick={handleOpenEditProfile}
-                className="absolute -bottom-1 -right-1 bg-emerald-500 hover:bg-emerald-600 text-white p-1 rounded-full shadow-xs cursor-pointer transition-transform hover:scale-110"
+                className="absolute -bottom-1 -right-1 bg-emerald-500 hover:bg-emerald-600 text-white p-1.5 rounded-full shadow-xs cursor-pointer transition-transform hover:scale-110 z-10"
                 title="修改個人資料與大頭貼"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -222,31 +224,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-1.5 truncate">
                   {user.name}
                   {isAdmin ? (
-                    <Crown className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" />
+                    <Crown className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" title="Happi 官方管理員" />
                   ) : (
                     <Sparkles className="w-4 h-4 text-emerald-500 fill-emerald-500 shrink-0" />
                   )}
                 </h2>
                 {isAdmin && (
-                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 border border-amber-200">
+                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 border border-amber-200 shrink-0">
                     <Crown className="w-3 h-3 text-amber-600" />
                     官方管理員
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 font-medium">@{user.username || "happi_user"}</p>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                {formatHandle(user.username)}
+              </p>
             </div>
           </div>
 
           <button
             onClick={handleOpenEditProfile}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0"
+            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ml-2"
           >
             <Edit3 className="w-3.5 h-3.5" />
-            <span>編輯資料</span>
+            <span className="hidden sm:inline">編輯資料</span>
           </button>
         </div>
 
@@ -348,7 +352,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               comments={comments.filter((c) => c.postId === post.id)}
               userBirthDate={user.birthDate}
               currentUserId={user.id}
-              currentUserIsAdmin={user.username === "admin" || user.id === "admin" || user.email === "admin@happi.com"}
+              currentUserIsAdmin={isAdmin}
               onLike={onLike}
               onSave={onSave}
               onAddComment={onAddComment}
@@ -356,6 +360,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               onOpenAppeal={onOpenAppeal}
               onEditPost={onEditPost}
               onDeletePost={onDeletePost}
+              onDeleteComment={onDeleteComment}
             />
           ))
         )}

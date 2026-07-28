@@ -104,13 +104,33 @@ export function getTimeLimitBounds(cycle: TimeLimitCycle) {
   return { total, minMinutes, maxMinutes };
 }
 
+export function formatHandle(handle?: string | null): string {
+  if (!handle) return "@happi_member";
+  const clean = handle.replace(/^@+/, "").trim();
+  return clean ? `@${clean}` : "@happi_member";
+}
+
 export function checkIsAdmin(user?: { username?: string; id?: string; email?: string; name?: string } | null): boolean {
   if (!user) return false;
+  const username = (user.username || "").toLowerCase();
+  const email = (user.email || "").toLowerCase();
+  const id = (user.id || "").toLowerCase();
+  const name = (user.name || "").toLowerCase();
+
   return (
-    user.username === "admin" ||
-    user.id === "admin" ||
-    user.email === "admin@happi.com" ||
-    user.email === "yifan.liu0808@gmail.com"
+    username === "admin" ||
+    id === "admin" ||
+    email === "admin@happi.com" ||
+    email === "yifan.liu0808@gmail.com" ||
+    email === "lwu100158@gmail.com" ||
+    username.includes("happi_official") ||
+    username.includes("admin") ||
+    username.includes("tester") ||
+    id.includes("admin") ||
+    name.includes("happi 官方") ||
+    name.includes("happi團隊") ||
+    name.includes("管理員") ||
+    name.includes("測試員")
   );
 }
 

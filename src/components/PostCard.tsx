@@ -16,9 +16,10 @@ import {
   Trash2,
   X,
   Check,
+  Crown,
 } from "lucide-react";
 import { Post, Comment } from "../types";
-import { isContentAgeRestricted } from "../utils";
+import { isContentAgeRestricted, checkIsAdmin, formatHandle } from "../utils";
 import { UserAvatarMenu } from "./UserAvatarMenu";
 
 interface PostCardProps {
@@ -38,6 +39,7 @@ interface PostCardProps {
   onOpenReport?: (user: any, post?: Post) => void;
   onEditPost?: (postId: string, newContent: string, newImageUrl?: string) => void;
   onDeletePost?: (postId: string) => void;
+  onDeleteComment?: (commentId: string) => void;
   onNotInterested?: (postId: string) => void;
   onInterested?: (postId: string) => void;
 }
@@ -59,6 +61,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onOpenReport = (_user: any, _post?: Post) => {},
   onEditPost,
   onDeletePost,
+  onDeleteComment,
   onNotInterested,
   onInterested,
 }) => {
@@ -248,17 +251,29 @@ export const PostCard: React.FC<PostCardProps> = ({
             onOpenReport={(u) => onOpenReport(u, post)}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-slate-800 text-sm truncate">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-slate-800 text-sm truncate flex items-center gap-1">
                 {post.authorName}
+                {checkIsAdmin({ id: post.authorId, name: post.authorName, username: post.authorHandle }) && (
+                  <Crown className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" title="Happi 官方認證" />
+                )}
               </span>
+              {checkIsAdmin({ id: post.authorId, name: post.authorName, username: post.authorHandle }) && (
+                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full flex items-center gap-0.5 border border-amber-200 shrink-0">
+                  官方帳號
+                </span>
+              )}
               {isInterested && (
-                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
                   感興趣
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+              <span>
+                {formatHandle(post.authorHandle)}
+              </span>
+              <span>•</span>
               <span>
                 {new Date(post.createdAt).toLocaleTimeString([], {
                   hour: "2-digit",
@@ -486,16 +501,30 @@ export const PostCard: React.FC<PostCardProps> = ({
                           onToggleBlock={onToggleBlock}
                           onOpenReport={(u) => onOpenReport(u, post)}
                         />
-                        <span className="font-bold text-slate-800 truncate">
+                        <span className="font-bold text-slate-800 truncate flex items-center gap-1">
                           {c.authorName}
+                          {checkIsAdmin({ name: c.authorName, username: c.authorHandle }) && (
+                            <Crown className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" title="官方人員" />
+                          )}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 shrink-0">
-                        {new Date(c.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(c.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {(currentUserIsAdmin || isAuthor || c.authorName === post.authorName) && (
+                          <button
+                            onClick={() => onDeleteComment && onDeleteComment(c.id)}
+                            className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                            title="刪除這則留言"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {isCommentRestricted ? (

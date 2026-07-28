@@ -34,6 +34,7 @@ interface OtherUserProfileModalProps {
   onOpenReport: (user: any, post?: Post) => void;
   onEditPost?: (postId: string, newContent: string, newImageUrl?: string) => void;
   onDeletePost?: (postId: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
 export const OtherUserProfileModal: React.FC<OtherUserProfileModalProps> = ({
@@ -54,6 +55,7 @@ export const OtherUserProfileModal: React.FC<OtherUserProfileModalProps> = ({
   onOpenReport,
   onEditPost,
   onDeletePost,
+  onDeleteComment,
 }) => {
   const [profileUser, setProfileUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -269,6 +271,7 @@ export const OtherUserProfileModal: React.FC<OtherUserProfileModalProps> = ({
                   onOpenReport={onOpenReport}
                   onEditPost={onEditPost}
                   onDeletePost={onDeletePost}
+                  onDeleteComment={onDeleteComment}
                 />
               ))
             )}

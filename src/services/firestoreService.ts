@@ -163,6 +163,14 @@ export const fetchAllUsersFromFirestore = async (): Promise<User[]> => {
   }
 };
 
+export const deleteCommentFromFirestore = async (commentId: string) => {
+  try {
+    await deleteDoc(doc(db, "comments", commentId));
+  } catch (err) {
+    console.error("Error deleting comment from Firestore:", err);
+  }
+};
+
 export const subscribeUser = (userId: string, onUpdate: (user: User) => void) => {
   const docRef = doc(db, "users", userId);
   return onSnapshot(

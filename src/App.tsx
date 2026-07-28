@@ -10,8 +10,10 @@ import {
 import {
   subscribePosts,
   savePostToFirestore,
+  deletePostFromFirestore,
   subscribeComments,
   saveCommentToFirestore,
+  deleteCommentFromFirestore,
   subscribeNotifications,
   saveNotificationToFirestore,
   markAllNotificationsReadInFirestore,
@@ -32,7 +34,6 @@ import { ReportModal } from "./components/ReportModal";
 import { OtherUserProfileModal } from "./components/OtherUserProfileModal";
 import { LandingPage } from "./components/LandingPage";
 import { LoadingSpinner } from "./components/LoadingSpinner";
-import { deletePostFromFirestore } from "./services/firestoreService";
 import { checkIsAdmin } from "./utils";
 import { Sparkles, Hash, LogIn, Clock, AlertTriangle, Lock, ShieldCheck, X, Droplets, BookOpen, Coffee, Heart } from "lucide-react";
 
@@ -1087,13 +1088,24 @@ export default function App() {
     localStorage.setItem("happi_comments", JSON.stringify(updatedComments));
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteCommentFromFirestore(commentId);
+      const updated = comments.filter((c) => c.id !== commentId);
+      setComments(updated);
+      localStorage.setItem("happi_comments", JSON.stringify(updated));
+    } catch (err) {
+      console.error("Delete comment error:", err);
+    }
+  };
+
   // Filter posts based on active hashtag or current view
   const userPosts = posts.filter((p) => p.authorId === user.id);
   const savedPosts = posts.filter((p) => p.savedByMe);
 
   const displayedFeedPosts = posts.filter((p) => {
-    // Hide private posts created by other users unless current user is admin
-    if (p.isPrivate && p.authorId !== user.id && !currentUserIsAdmin) {
+    // Hide private posts created by other users (Even admins cannot view other users' private posts)
+    if (p.isPrivate && p.authorId !== user.id) {
       return false;
     }
     if (selectedHashtagFilter) {
@@ -1234,6 +1246,7 @@ export default function App() {
                   }
                   onEditPost={handleEditPost}
                   onDeletePost={handleDeletePost}
+                  onDeleteComment={handleDeleteComment}
                 />
               ))
             )}
@@ -1263,6 +1276,7 @@ export default function App() {
             }
             onEditPost={handleEditPost}
             onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
           />
         )}
 
@@ -1404,6 +1418,7 @@ export default function App() {
               onUpdateTimeLimit={handleUpdateTimeLimit}
               onEditPost={handleEditPost}
               onDeletePost={handleDeletePost}
+              onDeleteComment={handleDeleteComment}
             />
           )
         )}
@@ -1606,6 +1621,7 @@ export default function App() {
           }
           onEditPost={handleEditPost}
           onDeletePost={handleDeletePost}
+          onDeleteComment={handleDeleteComment}
         />
       )}
 

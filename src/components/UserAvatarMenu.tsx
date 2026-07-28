@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { UserCheck, UserX, Flag, ExternalLink, MoreVertical } from "lucide-react";
+import { formatHandle } from "../utils";
 
 interface UserAvatarMenuProps {
   user: {
@@ -67,10 +68,12 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
 
       {/* Popover Action Menu */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-3 py-2 border-b border-slate-100 mb-1">
+        <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-3.5 py-2 border-b border-slate-100 mb-1">
             <div className="text-xs font-bold text-slate-800 truncate">{user.name}</div>
-            {user.handle && <div className="text-[10px] text-slate-400 truncate">@{user.handle}</div>}
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {formatHandle(user.handle)}
+            </div>
           </div>
 
           {/* View Profile */}
