@@ -1,0 +1,6 @@
+{
+  "name": "happi",
+  "description": "清新薄荷綠風格的社交軟體，包含貼文分享、AI年齡分級審查、Gemini申訴機制、#hashtag標籤及討論交流功能。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

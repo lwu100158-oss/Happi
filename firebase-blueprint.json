@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User profiles and settings",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "birthDate": { "type": "string", "nullable": true },
+        "bio": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "hasCompletedBirthDatePrompt": { "type": "boolean" },
+        "timeLimit": { "type": "object" },
+        "email": { "type": "string" },
+        "isMuted": { "type": "boolean" },
+        "mutedUntil": { "type": "string" },
+        "isBanned": { "type": "boolean" },
+        "bannedUntil": { "type": "string" },
+        "blockHistory": { "type": "array" },
+        "blockedUserIds": { "type": "array" }
+      },
+      "required": ["id", "username", "name"]
+    },
+    "posts": {
+      "title": "Post",
+      "description": "User posts and moderation status",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorHandle": { "type": "string" },
+        "content": { "type": "string" },
+        "hashtags": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array" },
+        "savedBy": { "type": "array" },
+        "commentsCount": { "type": "number" },
+        "moderation": { "type": "object" }
+      },
+      "required": ["id", "authorId", "content", "createdAt"]
+    },
+    "comments": {
+      "title": "Comment",
+      "description": "Comments on posts",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorHandle": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "postId", "content", "createdAt"]
+    },
+    "notifications": {
+      "title": "Notification",
+      "description": "User notifications",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "read": { "type": "boolean" },
+        "postId": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "message", "createdAt"]
+    }
+  }
+}
